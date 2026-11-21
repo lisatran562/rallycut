@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rally Cut</title>
+<meta name="theme-color" content="#2c7a4b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rally Cut">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a confident, shipped sports utility — quick, tactile, no fuss.
+   IDEA: a court-side scoreboard + broadcast timeline that cuts out dead time.
+   PICTURE: the video itself, with a timeline strip of ball-yellow rally blocks.
+   COLOUR and TYPE: grass-court green, chalk white, optic ball yellow; Barlow Condensed for numbers.
+   LAYOUT: single phone column — stage, timeline, transport, tuning, rally list, export. */
+:root{color-scheme:light dark;
+--bg:light-dark(#eaf1e6,#0e1a13);--panel:light-dark(#ffffff,#15261c);--ink:light-dark(#10261a,#e8f1e7);
+--mute:light-dark(#5a6e60,#9fb3a4);--line:light-dark(#d3dfd0,#25392c);--court:#2c7a4b;--court2:#24663e;
+--ball:#dcef2b;--ballInk:#1d2a06;--warn:#c8432b}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:720px;margin:0 auto;padding:0 max(4vw,14px) 48px}
+header{display:flex;align-items:center;gap:10px;padding:14px 0 10px}
+header svg{flex:none}
+h1{font:700 30px/1 "Barlow Condensed",sans-serif;margin:0;letter-spacing:.2px}
+h2{font:700 22px/1.1 "Barlow Condensed",sans-serif;margin:0 0 10px}
+.sub{color:var(--mute);font-size:14px;margin-left:auto;text-align:right}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
+button,.btn{font:600 16px Barlow,sans-serif;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation}
+button:focus-visible,.btn:focus-within,input:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
+button.pri,.btn.pri{background:var(--ball);color:var(--ballInk);border-color:transparent}
+button.on{background:var(--court);color:#fff;border-color:transparent}
+button:disabled{opacity:.45;cursor:default}
+.hero{background:var(--court);color:#fff;border-radius:20px;padding:18px;overflow:hidden}
+.hero svg{width:100%;height:auto;display:block}
+.hero h2{font-size:34px;line-height:1.05;margin:14px 0 6px;text-wrap:balance}
+.hero p{margin:0 0 14px;color:#dcebdc}
+.btn input{position:absolute;width:1px;height:1px;opacity:0}
+.stage{position:relative;background:#000;border-radius:16px;overflow:hidden;margin-top:6px}
+video{display:block;width:100%;max-height:62vh;background:#000}
+#ink{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none}
+#ink.live{pointer-events:auto}
+.badge{position:absolute;left:10px;top:10px;background:rgba(0,0,0,.62);color:#fff;font:600 14px "Barlow Condensed";padding:4px 10px;border-radius:999px}
+.tl{position:relative;height:64px;margin-top:10px;touch-action:none;cursor:pointer}
+.tl canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.row.spread{justify-content:space-between}
+.time{font:700 20px "Barlow Condensed";font-variant-numeric:tabular-nums;white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:0 12px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{background:var(--bg);border-radius:12px;padding:10px}
+.stat b{display:block;font:700 30px/1 "Barlow Condensed";font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--mute)}
+label.sl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;margin-top:12px;font-weight:600}
+label.sl output{font:700 18px "Barlow Condensed";white-space:nowrap}
+label.sl input{grid-column:1/-1;width:100%;accent-color:var(--court);height:32px}
+label.sl small{grid-column:1/-1;color:var(--mute);font-weight:400;font-size:13px}
+.prog{height:12px;background:var(--bg);border-radius:99px;overflow:hidden;margin:10px 0}
+.prog i{display:block;height:100%;width:0;background:var(--ball);transition:width .3s}
+@media(prefers-reduced-motion:reduce){.prog i{transition:none}}
+ol.rl{list-style:none;margin:0;padding:0}
+.rl li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.rl li.off .meta{opacity:.45;text-decoration:line-through}
+.rl .n{font:700 22px "Barlow Condensed";width:34px;height:34px;border-radius:50%;background:var(--ball);color:var(--ballInk);display:grid;place-items:center}
+.rl li.off .n{background:var(--line);color:var(--mute)}
+.rl li.cur{background:color-mix(in srgb,var(--ball) 14%,transparent)}
+.meta b{font:700 18px "Barlow Condensed";font-variant-numeric:tabular-nums;white-space:nowrap}
+.meta span{display:block;font-size:13px;color:var(--mute)}
+.rl .acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.rl .acts button{min-height:40px;padding:0 12px;font-size:15px}
+.note{font-size:14px;color:var(--mute);margin:8px 0 0}
+.err{color:var(--warn);font-weight:600}
+.hide{display:none!important}
+.h3{font:700 18px "Barlow Condensed",sans-serif;margin:14px 0 8px;color:light-dark(#2c7a4b,#dcef2b)}
+.hist{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:end;height:110px;margin-top:14px}
+.hist div{display:flex;flex-direction:column;justify-content:flex-end;height:100%;text-align:center;font-size:13px;color:var(--mute)}
+.hist i{display:block;background:var(--court);border-radius:6px 6px 2px 2px;min-height:3px}
+.hist b{font:700 15px "Barlow Condensed";color:var(--ink)}
+.tips{list-style:none;padding:0;margin:14px 0 0}
+.tips li{padding:10px 12px;background:var(--bg);border-radius:12px;margin-top:8px;border-left:4px solid var(--ball)}
+.tips li b{display:block}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+@media(max-width:420px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.fld{display:block;margin-top:10px;font-weight:600;font-size:14px}
+.fld input,.fld select,.fld textarea{display:block;width:100%;margin-top:4px;font:16px Barlow,sans-serif;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-height:44px}
+.moms{display:flex;gap:8px;overflow-x:auto;margin-top:8px}
+.moms figure{margin:0;flex:none;position:relative}
+.moms img{height:72px;border-radius:8px;display:block}
+.moms button{position:absolute;top:2px;right:2px;min-height:28px;height:28px;width:28px;padding:0;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;border:0}
+.moms figcaption{font-size:12px;color:var(--mute);text-align:center}
+.report{margin-top:10px}
+.report h3,.report h4{font:700 19px "Barlow Condensed";margin:16px 0 4px}
+.report p,.report li{font-size:16px}
+.report ul,.report ol{padding-left:20px;margin:6px 0}
+#outVid{width:100%;border-radius:12px;margin-top:10px;background:#000}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="#dcef2b"/><path d="M5 9c6 3 6 13 0 16M29 9c-6 3-6 13 0 16" stroke="#fff" stroke-width="2.4" fill="none"/></svg>
+  <h1>Rally Cut</h1>
+  <div class="sub" id="fileName">On-device · nothing uploaded</div>
+</header>
+
+<section id="empty" class="hero">
+  <svg viewBox="0 0 360 200" aria-hidden="true">
+    <rect x="0" y="0" width="360" height="150" rx="10" fill="#24663e"/>
+    <rect x="20" y="14" width="320" height="122" fill="none" stroke="#fff" stroke-width="2.5"/>
+    <path d="M20 30H340M20 120H340M100 30V120M260 30V120M100 75H260" stroke="#fff" stroke-width="2"/>
+    <path d="M180 8V142" stroke="#e8f1e7" stroke-width="4" stroke-dasharray="2 3"/>
+    <path d="M60 104Q120 20 205 52T318 86" fill="none" stroke="#dcef2b" stroke-width="2" stroke-dasharray="5 5"/>
+    <circle cx="318" cy="86" r="7" fill="#dcef2b"/>
+    <rect x="0" y="164" width="360" height="26" rx="6" fill="#1b4f30"/>
+    <g fill="#dcef2b"><rect x="14" y="168" width="44" height="18" rx="4"/><rect x="96" y="168" width="70" height="18" rx="4"/><rect x="204" y="168" width="30" height="18" rx="4"/><rect x="270" y="168" width="78" height="18" rx="4"/></g>
+    <g stroke="#ffffff" stroke-width="1.5" stroke-dasharray="3 3"><path d="M77 160V194M185 160V194M252 160V194"/></g>
+  </svg>
+  <h2>Your match, minus the walking around.</h2>
+  <p>Pick a video. Rally Cut listens for ball strikes, keeps the points and cuts the ball pickups, changeovers and water breaks. Everything runs on your phone.</p>
+  <label class="btn pri" style="position:relative">Choose match video<input id="file" type="file" accept="video/*"></label>
+</section>
+
+<section id="app" class="hide">
+  <div class="stage">
+    <video id="v" playsinline preload="auto"></video>
+    <canvas id="ink"></canvas>
+    <div class="badge hide" id="badge">Highlights</div>
+  </div>
+  <div class="tl" id="tl"><canvas id="tlc"></canvas></div>
+  <div class="row spread">
+    <span class="time" id="clock">0:00 / 0:00</span>
+    <div class="row" style="margin:0">
+      <button id="playBtn" aria-label="Play or pause">▶ Play</button>
+      <button id="hlBtn" class="pri">Play rallies</button>
+    </div>
+  </div>
+  <div class="row">
+    <button id="back" aria-label="Back one frame">◀ Frame</button>
+    <button id="fwd" aria-label="Forward one frame">Frame ▶</button>
+    <div class="seg" id="speeds"><button data-r="0.25">¼×</button><button data-r="0.5">½×</button><button data-r="1" class="on">1×</button></div>
+    <button id="drawBtn">Draw</button>
+    <button id="clearInk" class="hide">Clear</button>
+  </div>
+
+  <div class="card" id="scanCard">
+    <h2>Find the rallies</h2>
+    <p class="note" style="margin-top:0" id="scanNote">Rally Cut listens to the audio for racquet strikes. Short clips are read instantly; long matches are listened to at 4× speed, so keep this screen open.</p>
+    <div class="prog hide" id="prog"><i></i></div>
+    <div class="row"><button class="pri" id="scanBtn">Find rallies</button><button id="cancelScan" class="hide">Cancel</button><span class="note" id="scanMsg" style="margin:0"></span></div>
+  </div>
+
+  <div id="results" class="hide">
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><b id="sN">0</b><span>rallies kept</span></div>
+        <div class="stat"><b id="sLen">0:00</b><span>highlight length</span></div>
+        <div class="stat"><b id="sSaved">0%</b><span>dead time cut</span></div>
+      </div>
+      <details style="margin-top:12px" open>
+        <summary style="font-weight:600;cursor:pointer;min-height:32px">Tuning</summary>
+        <label class="sl">Sensitivity <output id="oSens"></output><input type="range" id="sens" min="1" max="10" step="1"><small>Raise it if quiet shots are missed; lower it if next-court noise sneaks in.</small></label>
+        <label class="sl">Longest gap between shots <output id="oGap"></output><input type="range" id="gap" min="1.5" max="8" step="0.5"><small>Longer keeps slow, loopy rallies together.</small></label>
+        <label class="sl">Fewest shots in a rally <output id="oMin"></output><input type="range" id="min" min="1" max="6" step="1"><small>2 keeps aces and missed returns; 4 keeps only real exchanges.</small></label>
+        <label class="sl">Lead-in before first shot <output id="oPre"></output><input type="range" id="pre" min="0" max="5" step="0.5"></label>
+        <label class="sl">Run-out after last shot <output id="oPost"></output><input type="range" id="post" min="0" max="5" step="0.5"></label>
+        <p class="note">Changing tuning rebuilds the list; Undo brings your edits back.</p>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="row spread" style="margin-top:0"><h2 style="margin:0">Rallies</h2>
+        <div class="row" style="margin:0"><button id="addBtn">+ Add at playhead</button><button id="undoBtn" disabled>Undo</button></div></div>
+      <ol class="rl" id="list"></ol>
+      <p class="note hide" id="noRally">No rallies yet. Try raising sensitivity or lowering “fewest shots”.</p>
+    </div>
+
+    <div class="card" id="coach">
+      <div class="row spread" style="margin-top:0"><h2 style="margin:0">Coach</h2>
+        <div class="seg" id="sessType"><button data-m="match" class="on">Match</button><button data-m="drill">Drilling</button></div></div>
+      <h3 class="h3">Session report</h3>
+      <div class="stats" id="cStats"></div>
+      <div class="hist" id="hist"></div>
+      <ul class="tips" id="tips"></ul>
+      <p class="note">Based on sound only: it counts shots by both players and can’t tell who won a point.</p>
+
+      <h3 class="h3" style="margin-top:22px">Technique review</h3>
+      <p class="note" style="margin-top:0">Claude looks at your strokes (just before, at and just after each strike) and coaches you on them.</p>
+      <div class="row">
+        <div class="seg" id="strokeSel"><button data-s="ground" class="on">Groundstrokes</button><button data-s="serve">Serves</button><button data-s="mix">Mix</button></div>
+      </div>
+      <div class="grid2">
+        <label class="fld">Which player are you?<input id="cWho" placeholder="e.g. near side, black shirt"></label>
+        <label class="fld">Level<select id="cLvl"><option>Beginner</option><option selected>Intermediate</option><option>Advanced</option></select></label>
+        <label class="fld">Plays<select id="cHand"><option>Right-handed</option><option>Left-handed</option></select></label>
+        <label class="fld">Camera view<select id="cView"><option>Behind the baseline</option><option>Side of the court</option><option>Other</option></select></label>
+      </div>
+      <label class="fld">What are you working on?<textarea id="cGoal" rows="2" placeholder="e.g. switching forehand grip to semi-western, want more topspin"></textarea></label>
+      <div class="row"><button id="addMoment">+ Add this moment</button><span class="note" style="margin:0" id="momNote">Optional: pause on strokes you want reviewed.</span></div>
+      <div class="moms" id="moms"></div>
+      <details id="keyBox" class="hide" style="margin-top:10px"><summary style="font-weight:600;cursor:pointer;min-height:32px">AI coach setup</summary>
+        <label class="fld">Your Claude API key<input id="cKey" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+        <label class="fld">Model<input id="cModel" value="claude-sonnet-5-5"></label>
+        <p class="note">Your key stays on this phone and is sent only to Anthropic’s API. Use a personal key from console.anthropic.com. A review costs a few cents.</p>
+      </details>
+      <div class="row"><button class="pri" id="coachBtn">Get coaching</button><button id="stopCoach" class="hide">Stop</button><span class="note" id="coachMsg" style="margin:0"></span></div>
+      <div class="moms" id="sentStrips"></div>
+      <div class="report" id="report"></div>
+    </div>
+
+    <div class="card">
+      <h2>Export highlights</h2>
+      <p class="note" style="margin-top:0">Builds one video of the kept rallies. It records in real time, so a 6-minute highlight takes about 6 minutes — leave the screen on.</p>
+      <div class="row"><label class="sl" style="margin:0;flex:1 1 200px">Quality <output id="oQ">720p</output>
+        <input type="range" id="q" min="0" max="2" step="1" value="1"></label></div>
+      <div class="prog hide" id="xprog"><i></i></div>
+      <div class="row"><button class="pri" id="expBtn">Export video</button><button id="cancelExp" class="hide">Stop</button><span class="note" id="expMsg" style="margin:0"></span></div>
+      <video id="outVid" class="hide" controls playsinline></video>
+      <div class="row hide" id="saveRow"><button class="pri" id="saveBtn">Save to phone</button></div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:18px"><label class="btn" style="position:relative">Open another video<input id="file2" type="file" accept="video/*"></label></div>
+</section>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const V=$('v'), ink=$('ink'), tlc=$('tlc');
+const fmt=t=>{t=Math.max(0,t||0);const h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=Math.floor(t%60);return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0')};
+const D={sens:6,gap:4,min:2,pre:2,post:1.5};
+let P=Object.assign({},D);
+try{Object.assign(P,JSON.parse(localStorage.getItem('rallycut.p')||'{}'))}catch(e){}
+let file=null,url=null,dur=0,hits=null,rallies=[],undo=[],mode='normal',single=-1,ctx=null,src=null,out=null,scan=null,exp=null,outBlob=null,outExt='mp4',downloads=null;
+
+/* ---------- audio graph ---------- */
+function ensureCtx(){
+  if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC();src=ctx.createMediaElementSource(V);out=ctx.createGain();src.connect(out);out.connect(ctx.destination)}
+  if(ctx.state!=='running')ctx.resume().catch(()=>{});
+}
+
+/* ---------- hit detector: high-passed energy vs. running background ---------- */
+function makeDetector(){
+  let bg=0,cand=null,last=-9;const hs=[];
+  return{feed(E,t,dw){
+    if(!bg)bg=E||1e-9;
+    const r=E/(bg+1e-10);
+    bg+=(Math.min(E,bg*4)-bg)*Math.min(1,dw/0.8);
+    if(cand&&t-cand[0]>0.07){hs.push(cand);last=cand[0];cand=null}
+    if(r>=2.5&&E>2e-7&&t-last>0.18){if(!cand||r>cand[1])cand=[t,r]}
+  },done(){if(cand)hs.push(cand);return hs}};
+}
+function makeWindower(sr,det){
+  const N=Math.max(32,Math.round(sr*0.006));let prev=0,acc=0,n=0;
+  return(data,t0,speed)=>{const dt=speed/sr;
+    for(let i=0;i<data.length;i++){const x=data[i],h=x-prev;prev=x;acc+=h*h;
+      if(++n===N){det.feed(acc/N,t0+i*dt,N*dt);acc=0;n=0}}};
+}
+const sensThr=s=>20*Math.pow(3/20,(s-1)/9);
+
+function setProg(el,f){el.classList.remove('hide');el.firstElementChild.style.width=(Math.min(1,f)*100).toFixed(1)+'%'}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let wake=null;async function keepAwake(on){try{if(on&&navigator.wakeLock)wake=await navigator.wakeLock.request('screen');else if(wake){wake.release();wake=null}}catch(e){}}
+
+async function decodeFast(){
+  const buf=await file.arrayBuffer();
+  const oc=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,22050,22050);
+  const ab=await new Promise((res,rej)=>{const p=oc.decodeAudioData(buf,res,rej);if(p&&p.then)p.then(res,rej)});
+  const sr=ab.sampleRate,det=makeDetector(),w=makeWindower(sr,det);
+  const a=ab.getChannelData(0),b=ab.numberOfChannels>1?ab.getChannelData(1):null,C=1<<19;
+  for(let o=0;o<a.length;o+=C){
+    let ch=a.subarray(o,o+C);
+    if(b){const m=new Float32Array(ch.length),bb=b.subarray(o,o+C);for(let i=0;i<m.length;i++)m[i]=(ch[i]+bb[i])*0.5;ch=m}
+    w(ch,o/sr,1);setProg($('prog'),o/a.length);$('scanMsg').textContent='Reading audio… '+Math.round(o/a.length*100)+'%';
+    await sleep(0);if(scan&&scan.cancel)throw new Error('cancel');
+  }
+  return det.done();
+}
+function scanRealtime(){
+  return new Promise((resolve,reject)=>{
+    ensureCtx();const speed=4,sr=ctx.sampleRate,det=makeDetector(),w=makeWindower(sr,det);
+    const proc=ctx.createScriptProcessor(4096,1,1),z=ctx.createGain();z.gain.value=0;
+    src.connect(proc);proc.connect(z);z.connect(ctx.destination);out.gain.value=0;
+    proc.onaudioprocess=e=>{if(V.paused||V.seeking)return;const d=e.inputBuffer.getChannelData(0);w(d,V.currentTime-d.length*speed/sr,speed)};
+    const t0=Date.now();
+    const tick=setInterval(()=>{const f=V.currentTime/dur;setProg($('prog'),f);
+      const el=(Date.now()-t0)/1000,left=f>0.01?el/f-el:(dur-V.currentTime)/speed;
+      $('scanMsg').textContent='Listening at 4× · '+Math.round(f*100)+'% · about '+fmt(left)+' left';
+      if(scan.cancel)finish(true);else if(V.paused&&!V.ended&&!document.hidden)V.play().catch(()=>{})},500);
+    function finish(c){clearInterval(tick);proc.onaudioprocess=null;try{src.disconnect(proc)}catch(e){}proc.disconnect();
+      V.removeEventListener('ended',onEnd);V.pause();V.playbackRate=1;setPitch(true);out.gain.value=1;c?reject(new Error('cancel')):resolve(det.done())}
+    function onEnd(){finish(false)}
+    V.addEventListener('ended',onEnd);
+    V.currentTime=0;setPitch(false);V.playbackRate=speed;V.play().catch(reject);
+  });
+}
+function setPitch(on){try{V.preservesPitch=on;V.mozPreservesPitch=on;V.webkitPreservesPitch=on}catch(e){}}
+
+async function runScan(){
+  ensureCtx();scan={cancel:false};mode='normal';
+  $('scanBtn').disabled=true;$('cancelScan').classList.remove('hide');setProg($('prog'),0);keepAwake(true);
+  try{
+    let hs=null;
+    if(file.size<300e6){try{hs=await decodeFast()}catch(e){if(e.message==='cancel')throw e;hs=null}}
+    if(!hs)hs=await scanRealtime();
+    hits=hs;rebuild(false);
+    $('scanMsg').textContent=hits.length+' ball strikes heard.';$('results').classList.remove('hide');
+    $('scanBtn').textContent='Scan again';
+    if(!hits.length)$('scanMsg').innerHTML='<span class="err">No strikes heard — does the video have sound?</span>';
+  }catch(e){$('scanMsg').textContent=e.message==='cancel'?'Scan cancelled.':'Could not read this video: '+e.message}
+  finally{$('prog').classList.add('hide');$('scanBtn').disabled=false;$('cancelScan').classList.add('hide');scan=null;keepAwake(false);V.currentTime=0;draw()}
+}
+
+/* ---------- rally grouping ---------- */
+function segment(){
+  const thr=sensThr(P.sens),hs=(hits||[]).filter(h=>h[1]>=thr).map(h=>h[0]).sort((a,b)=>a-b),g=[];let c=null;
+  for(const t of hs){if(c&&t-c.l<=P.gap){c.l=t;c.n++}else{c&&g.push(c);c={f:t,l:t,n:1}}}c&&g.push(c);
+  const rs=[];
+  for(const x of g.filter(x=>x.n>=P.min)){const r={a:Math.max(0,x.f-P.pre),b:Math.min(dur,x.l+P.post),n:x.n,keep:true};
+    const p=rs[rs.length-1];if(p&&r.a<=p.b){p.b=Math.max(p.b,r.b);p.n+=r.n}else rs.push(r)}
+  return rs;
+}
+function snap(){undo.push(JSON.stringify(rallies));if(undo.length>40)undo.shift();$('undoBtn').disabled=false}
+function rebuild(keepUndo){if(keepUndo!==false&&rallies.length)snap();rallies=segment();render()}
+
+/* ---------- render ---------- */
+function render(){
+  const k=rallies.filter(r=>r.keep),len=k.reduce((s,r)=>s+r.b-r.a,0);
+  $('sN').textContent=k.length;$('sLen').textContent=fmt(len);$('sSaved').textContent=dur?Math.max(0,Math.round((1-len/dur)*100))+'%':'0%';
+  $('noRally').classList.toggle('hide',rallies.length>0);
+  $('list').innerHTML=rallies.map((r,i)=>`<li class="${r.keep?'':'off'}" data-i="${i}">
+    <span class="n">${i+1}</span>
+    <span class="meta"><b>${fmt(r.a)} – ${fmt(r.b)}</b><span>${(r.b-r.a).toFixed(1)} s${r.n?' · '+r.n+' shots':''}</span></span>
+    <button data-a="play" aria-label="Play rally ${i+1}">▶</button>
+    <span class="acts"><button data-a="in">Start here</button><button data-a="out">End here</button><button data-a="keep">${r.keep?'Skip':'Keep'}</button><button data-a="del">Delete</button></span></li>`).join('');
+  $('undoBtn').disabled=!undo.length;draw();markCur();coachReport();
+}
+function markCur(){const t=V.currentTime;document.querySelectorAll('#list li').forEach(li=>{const r=rallies[+li.dataset.i];li.classList.toggle('cur',!!r&&t>=r.a&&t<r.b)})}
+
+function draw(){
+  const W=tlc.clientWidth,H=tlc.clientHeight,dpr=devicePixelRatio||1;if(!W)return;
+  if(tlc.width!==Math.round(W*dpr)){tlc.width=Math.round(W*dpr);tlc.height=Math.round(H*dpr)}
+  const g=tlc.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  g.fillStyle='#24663e';g.fillRect(0,0,W,H);
+  if(!dur)return;const x=t=>t/dur*W;
+  for(const r of rallies){g.fillStyle=r.keep?'#dcef2b':'rgba(255,255,255,.25)';g.fillRect(x(r.a),6,Math.max(2,x(r.b)-x(r.a)),H-12)}
+  if(hits){const thr=sensThr(P.sens);g.fillStyle='rgba(255,255,255,.85)';
+    for(const h of hits){if(h[1]<thr)continue;const hh=Math.min(1,Math.log(h[1]/thr+1)/2.5)*(H-20)+6;g.fillRect(x(h[0]),H-6-hh,1,hh)}}
+  const px=x(V.currentTime);g.fillStyle='#fff';g.fillRect(px-1.5,0,3,H);g.beginPath();g.arc(px,6,5,0,7);g.fill();
+}
+new ResizeObserver(()=>{draw();sizeInk()}).observe(tlc);
+
+/* ---------- playback ---------- */
+const kept=()=>rallies.filter(r=>r.keep);
+function loop(){
+  const t=V.currentTime;
+  if(!V.paused&&!V.seeking&&!exp){
+    if(mode==='hl'){const ks=kept(),cur=ks.find(r=>t>=r.a-0.05&&t<r.b);
+      if(!cur){const nx=ks.find(r=>r.a>t);if(nx)V.currentTime=nx.a;else{V.pause();setMode('normal')}}}
+    else if(mode==='single'){const r=rallies[single];if(!r||t>=r.b){V.pause();setMode('normal')}}
+  }
+  $('clock').textContent=fmt(t)+' / '+fmt(dur);draw();
+  if(!V.paused)markCur();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+function setMode(m){mode=m;$('badge').classList.toggle('hide',m!=='hl');$('hlBtn').textContent=m==='hl'&&!V.paused?'Stop rallies':'Play rallies'}
+function play(){ensureCtx();V.play().catch(()=>{})}
+V.addEventListener('play',()=>{$('playBtn').textContent='❚❚ Pause';setMode(mode)});
+V.addEventListener('pause',()=>{$('playBtn').textContent='▶ Play';setMode(mode)});
+$('playBtn').onclick=()=>{if(scan||exp)return;if(V.paused){if(mode==='single')setMode('normal');play()}else V.pause()};
+V.onclick=()=>$('playBtn').onclick();
+$('hlBtn').onclick=()=>{if(scan||exp)return;if(mode==='hl'&&!V.paused){V.pause();setMode('normal');return}
+  const ks=kept();if(!ks.length){$('scanMsg').textContent=hits?'No kept rallies yet.':'Tap “Find rallies” first.';$('scanCard').scrollIntoView({behavior:'smooth'});return}
+  const t=V.currentTime,inR=ks.find(r=>t>=r.a&&t<r.b);if(!inR)V.currentTime=(ks.find(r=>r.a>t)||ks[0]).a;setMode('hl');play()};
+const step=d=>{V.pause();V.currentTime=Math.min(dur,Math.max(0,V.currentTime+d/30))};
+$('back').onclick=()=>step(-1);$('fwd').onclick=()=>step(1);
+$('speeds').onclick=e=>{const b=e.target.closest('button');if(!b)return;V.playbackRate=+b.dataset.r;
+  $('speeds').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
+
+/* timeline scrub */
+function seekAt(e){const r=tlc.getBoundingClientRect();V.currentTime=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*dur}
+let scrub=false;
+$('tl').addEventListener('pointerdown',e=>{if(scan||exp||!dur)return;scrub=true;$('tl').setPointerCapture(e.pointerId);if(mode==='single')setMode('normal');seekAt(e)});
+$('tl').addEventListener('pointermove',e=>{if(scrub)seekAt(e)});
+$('tl').addEventListener('pointerup',()=>{scrub=false;markCur()});
+
+/* ---------- coach drawing ---------- */
+let drawing=false,strokes=[],curS=null;
+function sizeInk(){const r=ink.getBoundingClientRect(),d=devicePixelRatio||1;if(!r.width)return;ink.width=r.width*d;ink.height=r.height*d;paint()}
+function paint(){const g=ink.getContext('2d'),W=ink.width,H=ink.height;g.clearRect(0,0,W,H);g.lineCap=g.lineJoin='round';g.lineWidth=Math.max(3,W/180);g.strokeStyle='#dcef2b';g.shadowColor='rgba(0,0,0,.6)';g.shadowBlur=4;
+  for(const s of strokes){g.beginPath();s.forEach((p,i)=>i?g.lineTo(p[0]*W,p[1]*H):g.moveTo(p[0]*W,p[1]*H));g.stroke()}}
+const pt=e=>{const r=ink.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]};
+ink.addEventListener('pointerdown',e=>{curS=[pt(e)];strokes.push(curS);ink.setPointerCapture(e.pointerId)});
+ink.addEventListener('pointermove',e=>{if(curS){curS.push(pt(e));paint()}});
+ink.addEventListener('pointerup',()=>curS=null);
+$('drawBtn').onclick=()=>{drawing=!drawing;if(drawing)V.pause();ink.classList.toggle('live',drawing);$('drawBtn').classList.toggle('on',drawing);$('clearInk').classList.toggle('hide',!drawing&&!strokes.length)};
+$('clearInk').onclick=()=>{strokes=[];paint();if(!drawing)$('clearInk').classList.add('hide')};
+V.addEventListener('loadedmetadata',sizeInk);
+
+/* ---------- list actions ---------- */
+$('list').onclick=e=>{const b=e.target.closest('button');if(!b||exp)return;const i=+b.closest('li').dataset.i,r=rallies[i],t=V.currentTime,a=b.dataset.a;
+  if(a==='play'){single=i;V.currentTime=r.a;setMode('single');play();return}
+  snap();
+  if(a==='in'){if(t<r.b-0.3)r.a=t}else if(a==='out'){if(t>r.a+0.3)r.b=t}
+  else if(a==='keep')r.keep=!r.keep;else if(a==='del')rallies.splice(i,1);
+  r.n=a==='in'||a==='out'?0:r.n;render()};
+$('addBtn').onclick=()=>{if(!dur)return;snap();const t=V.currentTime;rallies.push({a:Math.max(0,t-3),b:Math.min(dur,t+5),n:0,keep:true});rallies.sort((x,y)=>x.a-y.a);render()};
+$('undoBtn').onclick=()=>{if(!undo.length)return;rallies=JSON.parse(undo.pop());render()};
+
+/* ---------- tuning ---------- */
+const lab={sens:v=>v+' / 10',gap:v=>v+' s',min:v=>v+(v>1?' shots':' shot'),pre:v=>v+' s',post:v=>v+' s'};
+for(const k of Object.keys(D)){const el=$(k);el.value=P[k];$('o'+k[0].toUpperCase()+k.slice(1)).textContent=lab[k](P[k]);
+  el.oninput=()=>{P[k]=+el.value;$('o'+k[0].toUpperCase()+k.slice(1)).textContent=lab[k](P[k]);try{localStorage.setItem('rallycut.p',JSON.stringify(P))}catch(e){}
+    if(hits){clearTimeout(el._t);el._t=setTimeout(()=>rebuild(true),120)}}}
+
+/* ---------- load ---------- */
+function load(f){if(!f)return;if(scan||exp)return;file=f;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);
+  hits=null;rallies=[];undo=[];strokes=[];paint();setMode('normal');V.src=url;V.load();
+  $('fileName').textContent=f.name.length>28?f.name.slice(0,25)+'…':f.name;
+  $('empty').classList.add('hide');$('app').classList.remove('hide');$('results').classList.add('hide');
+  $('scanBtn').textContent='Find rallies';$('scanMsg').textContent='';$('outVid').classList.add('hide');$('saveRow').classList.add('hide');$('expMsg').textContent='';
+  $('scanNote').textContent=f.size<300e6?'This clip is short enough to read instantly.':'Long video: Rally Cut listens at 4× speed (an hour takes about 15 min). Keep this screen open.'}
+V.addEventListener('loadedmetadata',()=>{dur=V.duration||0;draw()});
+V.addEventListener('error',()=>{$('scanMsg').innerHTML='<span class="err">This phone can’t play that video format.</span>'});
+$('file').onchange=e=>load(e.target.files[0]);$('file2').onchange=e=>load(e.target.files[0]);
+$('scanBtn').onclick=()=>{if(dur&&!scan&&!exp)runScan()};
+$('cancelScan').onclick=()=>{if(scan)scan.cancel=true};
+
+/* ---------- export ---------- */
+const Q=[[854,'480p',2.5e6],[1280,'720p',5e6],[1920,'1080p',9e6]];
+$('q').oninput=()=>$('oQ').textContent=Q[$('q').value][1];
+function pickMime(){if(!window.MediaRecorder)return null;for(const m of['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'])if(MediaRecorder.isTypeSupported(m))return m;return''}
+const once=(el,ev)=>new Promise(r=>el.addEventListener(ev,r,{once:true}));
+async function runExport(){
+  const ks=kept();if(!ks.length){$('expMsg').textContent='Keep at least one rally first.';return}
+  const mime=pickMime(),cv=document.createElement('canvas');
+  if(mime===null||!cv.captureStream){$('expMsg').innerHTML='<span class="err">This browser can’t record video. Try Chrome or a recent iPhone.</span>';return}
+  ensureCtx();V.pause();setMode('normal');
+  const q=Q[$('q').value],sc=Math.min(1,q[0]/Math.max(V.videoWidth,V.videoHeight)*(V.videoWidth>=V.videoHeight?1:16/9));
+  cv.width=Math.round(V.videoWidth*sc/2)*2;cv.height=Math.round(V.videoHeight*sc/2)*2;const g=cv.getContext('2d');
+  const dest=ctx.createMediaStreamDestination();src.connect(dest);out.gain.value=0;
+  const stream=new MediaStream([...cv.captureStream(30).getVideoTracks(),...dest.stream.getAudioTracks()]);
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:q[2]}:{});const chunks=[];
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  exp={cancel:false};const total=ks.reduce((s,r)=>s+r.b-r.a,0);let doneT=0;
+  $('expBtn').disabled=true;$('cancelExp').classList.remove('hide');$('outVid').classList.add('hide');$('saveRow').classList.add('hide');keepAwake(true);
+  let live=true;(function frame(){if(!live)return;if(V.videoWidth)g.drawImage(V,0,0,cv.width,cv.height);requestAnimationFrame(frame)})();
+  V.playbackRate=1;
+  try{
+    for(let i=0;i<ks.length&&!exp.cancel;i++){const r=ks[i];
+      V.currentTime=r.a;await once(V,'seeked');g.drawImage(V,0,0,cv.width,cv.height);
+      if(rec.state==='inactive')rec.start(1000);else rec.resume();
+      await V.play();
+      await new Promise(res=>{const chk=()=>{const t=V.currentTime;setProg($('xprog'),(doneT+t-r.a)/total);
+        $('expMsg').textContent='Rally '+(i+1)+' of '+ks.length+' · '+Math.round((doneT+t-r.a)/total*100)+'%';
+        if(t>=r.b||V.ended||exp.cancel)res();else setTimeout(chk,40)};chk()});
+      V.pause();if(rec.state==='recording')rec.pause();doneT+=r.b-r.a;
+    }
+    const stopped=once(rec,'stop');if(rec.state!=='inactive')rec.stop();await stopped;
+    if(exp.cancel)throw new Error('cancel');
+    const type=rec.mimeType||mime||'video/webm';outExt=/mp4/.test(type)?'mp4':'webm';
+    outBlob=new Blob(chunks,{type:type.split(';')[0]});
+    $('outVid').src=URL.createObjectURL(outBlob);$('outVid').classList.remove('hide');
+    $('expMsg').textContent='Done · '+(outBlob.size/1048576).toFixed(1)+' MB '+outExt.toUpperCase();
+    $('saveRow').classList.toggle('hide',!downloads);
+    if(!downloads)$('expMsg').textContent+=' · saving isn’t available in this view; open Rally Cut in the Claude app.';
+  }catch(e){$('expMsg').textContent=e.message==='cancel'?'Export stopped.':'Export failed: '+e.message;try{rec.state!=='inactive'&&rec.stop()}catch(x){}}
+  finally{live=false;try{src.disconnect(dest)}catch(e){}out.gain.value=1;exp=null;$('xprog').classList.add('hide');$('expBtn').disabled=false;$('cancelExp').classList.add('hide');keepAwake(false)}
+}
+$('expBtn').onclick=()=>{if(!exp&&!scan)runExport()};
+$('cancelExp').onclick=()=>{if(exp)exp.cancel=true};
+$('saveBtn').onclick=async()=>{if(!outBlob||!downloads)return;
+  const d=new Date(),name='rally-cut-'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.'+outExt;
+  try{await downloads.save({filename:name,data:outBlob});$('expMsg').textContent='Saved '+name}
+  catch(e){$('expMsg').textContent=e&&e.code==='declined'?'Save cancelled.':e&&e.code==='rate_limited'?'One moment, then try again.':'Couldn’t save here.'}};
+(function getDl(n){if(window.claude&&window.claude.use){window.claude.use('downloads').then(d=>{downloads=d;if(outBlob){$('saveRow').classList.toggle('hide',!d)}}).catch(()=>{});return}if(n<40)setTimeout(()=>getDl(n+1),250)})(0);
+/* ---------- coach: session report ---------- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const med=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+let sess='match';try{sess=localStorage.getItem('rallycut.sess')||'match'}catch(e){}
+function strikes(){const thr=sensThr(P.sens);return (hits||[]).filter(h=>h[1]>=thr).map(h=>h[0]).sort((a,b)=>a-b)}
+function analyze(){
+  const hs=strikes(),ks=kept();
+  const rs=ks.map(r=>{const t=hs.filter(x=>x>=r.a&&x<=r.b);const g=[];for(let i=1;i<t.length;i++)g.push(t[i]-t[i-1]);return{a:r.a,b:r.b,t,shots:t.length,gaps:g}});
+  const shots=rs.map(r=>r.shots),allG=rs.flatMap(r=>r.gaps.filter(g=>g<=P.gap)),rest=[];
+  for(let i=1;i<rs.length;i++){const g=rs[i].a-rs[i-1].b+P.pre+P.post;if(g>0&&g<180)rest.push(g)}
+  const third=k=>{const a=dur*k/3,b=dur*(k+1)/3,x=rs.filter(r=>r.a>=a&&r.a<b);return x.length?x.reduce((s,r)=>s+r.shots,0)/x.length:0};
+  const per=k=>{const a=dur*k/4,b=dur*(k+1)/4;return hs.filter(t=>t>=a&&t<b).length/Math.max(1,(b-a)/60)};
+  const longest=rs.reduce((m,r)=>r.shots>(m?m.shots:0)?r:m,null);
+  return{rs,n:rs.length,total:hs.length,avg:shots.length?shots.reduce((a,b)=>a+b,0)/shots.length:0,med:med(shots),
+    short:shots.filter(s=>s<=3).length/Math.max(1,shots.length),long:shots.filter(s=>s>=7).length/Math.max(1,shots.length),
+    tempo:med(allG),rest:med(rest),thirds:[0,1,2].map(third),quarters:[0,1,2,3].map(per),longest,perMin:hs.length/Math.max(1,dur/60),
+    hist:[[1,2],[3,4],[5,6],[7,9],[10,1e9]].map(([a,b])=>shots.filter(s=>s>=a&&s<=b).length)}
+}
+function tipsFor(S){
+  const T=[];const add=(h,b)=>T.push([h,b]);
+  if(sess==='match'){
+    if(S.short>0.55)add('Points are ending early',`${Math.round(S.short*100)}% of points are over within 3 shots, so the serve and return are deciding most of them. Build consistency first: clear the net by a metre or two and aim a metre inside the lines. Practise serve +1 and return-deep patterns.`);
+    else if(S.avg>=6)add('You’re winning the consistency battle',`Rallies average ${S.avg.toFixed(1)} shots. Next step is finishing: look for the short ball, take it early and move forward, and practise approach-and-volley patterns.`);
+    else add('Balanced rally lengths',`Rallies average ${S.avg.toFixed(1)} shots. Pick one pattern to own, like crosscourt until you get a short ball, then down the line.`);
+    const [f,,l]=S.thirds;
+    if(f>0&&l>0&&l<f*0.75)add('Rallies got shorter late',`Average rally fell from ${f.toFixed(1)} shots early to ${l.toFixed(1)} in the last third. That usually means fatigue or lost focus. Add interval work (30 s hard / 30 s easy) and use a reset routine between points.`);
+    else if(f>0&&l>f*1.25)add('You got better as you went',`Rallies grew from ${f.toFixed(1)} to ${l.toFixed(1)} shots. A longer, livelier warm-up could get you there from the first game.`);
+    if(S.tempo&&S.tempo<1.15)add('Fast exchanges',`About ${S.tempo.toFixed(1)} s between shots. With that little time, do your unit turn as soon as you read the ball and keep your backswing compact.`);
+    else if(S.tempo>1.9)add('Slow, loopy pace',`About ${S.tempo.toFixed(1)} s between shots. Step in and take the ball on the rise sometimes to take time away from your opponent.`);
+    if(S.rest>30)add('Long breaks between points',`About ${Math.round(S.rest)} s between points (25 s is the tournament limit). In practice, cutting rest gets you more points per hour.`);
+    else if(S.rest&&S.rest<10)add('Rushing between points',`Only about ${Math.round(S.rest)} s between points. A short routine (breathe, pick a target) helps first-serve percentage.`);
+  }else{
+    add('Volume',`${S.total} strikes, about ${S.perMin.toFixed(0)} per minute over the session.`);
+    const q=S.quarters.filter(x=>x>0);
+    if(q.length>=3&&q[q.length-1]<q[0]*0.8)add('Output dropped off',`Strikes per minute fell from ${q[0].toFixed(0)} to ${q[q.length-1].toFixed(0)}. Do sets of 15–20 balls with 30–45 s rest so the last sets are still quality reps.`);
+    if(S.longest)add('Longest run',`${S.longest.shots} strikes in a row without a break, starting at ${fmt(S.longest.a)}. Use the technique review below to check whether your form holds up late in long sets.`);
+    add('Making changes stick','When you’re changing technique, slow the machine and drop the pace to about 70%. Groove 10 clean reps before adding speed or spin.');
+  }
+  return T;
+}
+function coachReport(){
+  if(!hits){$('cStats').innerHTML='';$('tips').innerHTML='';$('hist').innerHTML='';return}
+  const S=analyze();
+  const tiles=sess==='match'?[[S.n,'points'],[S.avg.toFixed(1),'avg shots/rally'],[S.longest?S.longest.shots:0,'longest rally']]
+    :[[S.total,'strikes'],[S.perMin.toFixed(0),'per minute'],[S.longest?S.longest.shots:0,'longest run']];
+  $('cStats').innerHTML=tiles.map(t=>`<div class="stat"><b>${t[0]}</b><span>${t[1]}</span></div>`).join('');
+  const mx=Math.max(1,...S.hist),lb=['1–2','3–4','5–6','7–9','10+'];
+  $('hist').innerHTML=S.hist.map((v,i)=>`<div><b>${v}</b><i style="height:${v/mx*70}%"></i>${lb[i]}</div>`).join('');
+  $('tips').innerHTML=tipsFor(S).map(t=>`<li><b>${esc(t[0])}</b>${esc(t[1])}</li>`).join('');
+}
+$('sessType').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===sess));
+$('sessType').onclick=e=>{const b=e.target.closest('button');if(!b)return;sess=b.dataset.m;try{localStorage.setItem('rallycut.sess',sess)}catch(x){}
+  $('sessType').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));coachReport()};
+
+/* ---------- coach: technique review ---------- */
+let strokeMode='ground',moments=[],sample=null,sampleMax=8,coachCtl=null;
+const inArtifact=!!window.claude;
+const F=['cWho','cLvl','cHand','cView','cGoal','cKey','cModel'];
+for(const id of F){try{const v=localStorage.getItem('rallycut.'+id);if(v!==null)$(id).value=v}catch(e){}
+  $(id).addEventListener('change',()=>{try{localStorage.setItem('rallycut.'+id,$(id).value)}catch(e){}})}
+if(!inArtifact)$('keyBox').classList.remove('hide');
+$('strokeSel').onclick=e=>{const b=e.target.closest('button');if(!b)return;strokeMode=b.dataset.s;$('strokeSel').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
+async function grab(t,W){
+  const sk=once(V,'seeked');V.currentTime=Math.max(0,Math.min(dur-0.05,t));await Promise.race([sk,sleep(2000)]);
+  const c=document.createElement('canvas'),s=W/V.videoWidth;c.width=W;c.height=Math.round(V.videoHeight*s);c.getContext('2d').drawImage(V,0,0,c.width,c.height);return c}
+async function strip(t){
+  const port=V.videoHeight>V.videoWidth,W=port?360:560,offs=[-0.35,0,0.35],cs=[];
+  for(const o of offs)cs.push(await grab(t+o,W));
+  const c=document.createElement('canvas'),g=c.getContext('2d'),h=cs[0].height,pad=6;c.width=W*3+pad*2;c.height=h+30;
+  g.fillStyle='#111';g.fillRect(0,0,c.width,c.height);
+  cs.forEach((x,i)=>{g.drawImage(x,i*(W+pad),30);g.fillStyle='#dcef2b';g.font='bold 20px sans-serif';g.fillText(['before','strike','after'][i]+'  '+fmt(t+offs[i]),i*(W+pad)+8,22)});
+  return await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
+}
+function thumb(blob,label,onX){const f=document.createElement('figure'),u=URL.createObjectURL(blob);f.innerHTML=`<img src="${u}" alt="Stroke at ${label}"><figcaption>${label}</figcaption>`+(onX?'<button aria-label="Remove">×</button>':'');if(onX)f.querySelector('button').onclick=onX;return f}
+function renderMoments(){const m=$('moms');m.innerHTML='';moments.forEach((t,i)=>{const f=document.createElement('figure');f.innerHTML=`<figcaption style="padding:8px 12px;background:var(--bg);border-radius:8px;font-size:15px;color:var(--ink)">${fmt(t)}</figcaption><button aria-label="Remove">×</button>`;f.querySelector('button').onclick=()=>{moments.splice(i,1);renderMoments()};m.appendChild(f)});
+  $('momNote').textContent=moments.length?moments.length+' picked · the rest are chosen for you':'Optional: pause on strokes you want reviewed.'}
+$('addMoment').onclick=()=>{if(!dur)return;if(moments.length>=sampleMax){$('momNote').textContent='That’s the most for one review.';return}moments.push(V.currentTime);moments.sort((a,b)=>a-b);renderMoments()};
+function pickStrokes(n){
+  const S=analyze();let c=[];
+  for(const r of S.rs){if(!r.t.length)continue;if(strokeMode==='serve')c.push(r.t[0]);else if(strokeMode==='ground')c.push(...r.t.slice(1));else c.push(...r.t)}
+  c=c.filter(t=>!moments.some(m=>Math.abs(m-t)<1));
+  if(c.length<=n)return c;const out=[];for(let i=0;i<n;i++)out.push(c[Math.floor((i+0.5)*c.length/n)]);return out;
+}
+function coachPrompt(times,S){
+  const lines=[`You are an experienced USPTA/LTA-level tennis coach reviewing a player's video.`,
+  `Player: ${$('cLvl').value}, ${$('cHand').value}. Identify them as: ${$('cWho').value||'not stated — say which player you assumed'}. Camera: ${$('cView').value}.`,
+  `What they're working on: ${$('cGoal').value||'not stated'}.`,
+  `Session type: ${sess==='match'?'match play':'drilling / ball machine'}. Strokes requested: ${strokeMode==='ground'?'groundstrokes':strokeMode==='serve'?'serves':'a mix'}.`,
+  `Audio stats (both players' strikes): ${S.n} rallies, average ${S.avg.toFixed(1)} shots, ${Math.round(S.short*100)}% of rallies ≤3 shots, median ${S.tempo.toFixed(2)} s between shots, average shots per rally by thirds of the session ${S.thirds.map(x=>x.toFixed(1)).join(' / ')}.`,
+  `You get ${times.length} images. Each is a strip of 3 frames: about 0.35 s before a ball strike sound, at it, and 0.35 s after (timestamps on each frame). The sound timing can be off by a few tenths of a second, so the contact may be in the first or last frame. Image k is the stroke at ${times.map((t,i)=>`#${i+1} ${fmt(t)}`).join(', ')}.`,
+  `Only comment on what you can actually see. If the player is too small, blurry or out of frame, say so and suggest a better camera setup instead of guessing.`,
+  `Reply in this format, plain and encouraging, under 450 words:`,
+  `### What I see`,`One or two lines per stroke: stroke type, then the key thing (preparation, contact point, footwork, balance, follow-through). Reference stroke numbers.`,
+  `### Top 3 fixes`,`A numbered list, most important first. For each: the problem, why it matters, and one feel cue.`,
+  `### Drills for this week`,`2–3 drills, including one that works with a ball machine, with reps.`,
+  `### Keep doing`,`One thing they do well.`];
+  return lines.join('\n');
+}
+function md(s){
+  const L=esc(s).split('\n');let h='',list=null;
+  const inl=x=>x.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|\s)\*(.+?)\*(?=\s|$)/g,'$1<i>$2</i>');
+  const close=()=>{if(list){h+=`</${list}>`;list=null}};
+  for(const l of L){let m;
+    if(m=l.match(/^#{1,4}\s+(.*)/)){close();h+=`<h3>${inl(m[1])}</h3>`}
+    else if(m=l.match(/^\s*[-•*]\s+(.*)/)){if(list!=='ul'){close();h+='<ul>';list='ul'}h+=`<li>${inl(m[1])}</li>`}
+    else if(m=l.match(/^\s*\d+[.)]\s+(.*)/)){if(list!=='ol'){close();h+='<ol>';list='ol'}h+=`<li>${inl(m[1])}</li>`}
+    else if(l.trim()){close();h+=`<p>${inl(l)}</p>`}}
+  close();return h;
+}
+const b64=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(blob)});
+async function askApi(prompt,blobs,signal){
+  const key=$('cKey').value.trim();if(!key){$('keyBox').open=true;throw{code:'nokey'}}
+  const content=[];for(const b of blobs)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await b64(b)}});content.push({type:'text',text:prompt});
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:$('cModel').value.trim()||'claude-sonnet-5-5',max_tokens:2000,messages:[{role:'user',content}]})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw{code:'api',message:(j.error&&j.error.message)||('HTTP '+r.status)};
+  return (j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');
+}
+$('coachBtn').onclick=async()=>{
+  if(scan||exp||coachCtl)return;
+  if(!hits){$('coachMsg').textContent='Tap “Find rallies” first.';return}
+  if(inArtifact&&!sample){$('coachMsg').textContent='The AI coach isn’t available in this view.';return}
+  const n=Math.max(1,Math.min(sampleMax,6+moments.length)),times=[...moments,...pickStrokes(n-moments.length)].sort((a,b)=>a-b).slice(0,sampleMax);
+  if(!times.length){$('coachMsg').textContent='No strokes found for that choice. Try “Mix”.';return}
+  coachCtl=new AbortController();const sig=coachCtl.signal;V.pause();setMode('normal');const back=V.currentTime;
+  $('coachBtn').disabled=true;$('stopCoach').classList.remove('hide');$('report').innerHTML='';$('sentStrips').innerHTML='';
+  try{
+    const blobs=[];
+    for(let i=0;i<times.length;i++){if(sig.aborted)throw{code:'cancelled'};$('coachMsg').textContent=`Grabbing stroke ${i+1} of ${times.length}…`;
+      const b=await strip(times[i]);blobs.push(b);$('sentStrips').appendChild(thumb(b,'#'+(i+1)+' '+fmt(times[i])))}
+    V.currentTime=back;
+    const S=analyze(),prompt=coachPrompt(times,S);$('coachMsg').textContent='Coach is watching…';
+    let text;
+    if(inArtifact){const r=await sample(prompt,{images:blobs,signal:sig,cache:false,onText:({text})=>{$('coachMsg').textContent='';$('report').innerHTML=md(text)}});text=r.text}
+    else text=await askApi(prompt,blobs,sig);
+    $('report').innerHTML=md(text);$('coachMsg').textContent='';try{localStorage.setItem('rallycut.lastReport',text)}catch(e){}
+  }catch(e){
+    if(e&&e.text)$('report').innerHTML=md(e.text);
+    const c=e&&(e.code||e.name);
+    $('coachMsg').textContent=c==='cancelled'||c==='AbortError'?'Stopped.':c==='nokey'?'Add your API key under “AI coach setup”.':c==='not_granted'?'Claude access wasn’t allowed for this page.':c==='rate_limited'?'Busy right now. Try again in a minute.':c==='image_rejected'?'Those frames couldn’t be sent.':'Coach couldn’t answer: '+((e&&e.message)||'try again');
+  }finally{coachCtl=null;$('coachBtn').disabled=false;$('stopCoach').classList.add('hide')}
+};
+$('stopCoach').onclick=()=>{if(coachCtl)coachCtl.abort()};
+try{const last=localStorage.getItem('rallycut.lastReport');if(last)$('report').innerHTML='<p class="note">Last review</p>'+md(last)}catch(e){}
+(function getSample(n){if(window.claude&&window.claude.use){window.claude.use('sample').then(async s=>{sample=s;if(!s){$('coachBtn').disabled=true;$('coachMsg').textContent='AI coach unavailable here.';return}
+  const L=await s.limits().catch(()=>null);if(L&&L.images)sampleMax=Math.min(8,L.images.maxCount);else{$('coachBtn').disabled=true;$('coachMsg').textContent='AI coach can’t send images in this view.'}}).catch(()=>{});return}
+  if(inArtifact&&n<40)setTimeout(()=>getSample(n+1),250)})(0);
+if(!inArtifact&&'serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&scan&&V.paused&&!V.ended)V.play().catch(()=>{})});
+}
+</script>
+</body>
+</html>

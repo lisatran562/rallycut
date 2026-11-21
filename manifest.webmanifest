@@ -1,0 +1,16 @@
+{
+  "name": "Rally Cut",
+  "short_name": "Rally Cut",
+  "description": "Cut tennis videos down to the rallies and get coaching on your strokes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1a13",
+  "theme_color": "#2c7a4b",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
